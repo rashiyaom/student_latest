@@ -1,0 +1,1645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EvilEye — Protect your sessions from evil doing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07090d;--bg2:#0c1018;--bg3:#111620;--bg4:#161d28;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.11);
+  --text:#dde4ee;--muted:#5a6a7e;
+  --green:#00f0a0;--red:#ff3d57;--orange:#ff9500;
+  --yellow:#ffe600;--cyan:#00d4ff;--purple:#b06bff;
+  --phone:#ff2d78;
+  --font-head:'Bebas Neue',sans-serif;
+  --font-ui:'Syne',sans-serif;
+  --font-mono:'Space Mono',monospace;
+  --r:14px;--r2:20px;
+  --trans:.2s cubic-bezier(.4,0,.2,1);
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--font-mono);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;font-size:12px}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* ── LAYOUT ── */
+.shell{display:grid;grid-template-columns:56px 1fr;min-height:100vh}
+
+/* ── SIDEBAR ── */
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:4px;position:sticky;top:0;height:100vh;z-index:100}
+.logo-mark{width:34px;height:34px;background:var(--green);border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;flex-shrink:0}
+.logo-mark svg{width:18px;height:18px}
+.nav-btn{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);transition:all var(--trans);position:relative}
+.nav-btn:hover{background:rgba(255,255,255,0.05);color:var(--text)}
+.nav-btn.active{background:rgba(0,240,160,0.12);color:var(--green)}
+.nav-btn svg{width:16px;height:16px}
+.nav-tip{position:absolute;left:48px;background:var(--bg3);border:1px solid var(--border2);padding:5px 10px;border-radius:6px;font-size:10px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;z-index:200;font-family:var(--font-ui);letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+.nav-btn:hover .nav-tip{opacity:1}
+
+/* ── MAIN ── */
+.main{display:flex;flex-direction:column;overflow:hidden}
+
+/* ── TOPBAR ── */
+.topbar{height:54px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:var(--bg);position:sticky;top:0;z-index:50}
+.topbar-brand{display:flex;align-items:baseline;gap:10px}
+.topbar-brand h1{font-family:var(--font-head);font-size:28px;letter-spacing:.04em;line-height:1}
+.topbar-brand span{color:var(--green)}
+.topbar-student{font-size:11px;color:var(--muted);font-family:var(--font-ui);font-weight:600;letter-spacing:.06em;text-transform:uppercase;border-left:1px solid var(--border2);padding-left:10px}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.pill{display:flex;align-items:center;gap:6px;padding:4px 11px;border-radius:99px;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-family:var(--font-ui)}
+.pill.live{background:rgba(0,240,160,0.1);color:var(--green);border:1px solid rgba(0,240,160,.2)}
+.pill.idle{background:rgba(90,106,126,0.12);color:var(--muted);border:1px solid var(--border)}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.dot.blink{animation:blink 1.3s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.btn{padding:7px 16px;border-radius:9px;border:none;cursor:pointer;font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;transition:all var(--trans)}
+.btn-go{background:var(--green);color:#000}
+.btn-go:hover{background:#00ffb3;transform:translateY(-1px)}
+.btn-stop{background:rgba(255,61,87,.15);color:var(--red);border:1px solid rgba(255,61,87,.3)}
+.btn-stop:hover{background:rgba(255,61,87,.25)}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border2)}
+.btn-ghost:hover{color:var(--text);border-color:var(--border2);background:rgba(255,255,255,.04)}
+
+/* ── VIEWS ── */
+.view{display:none;padding:22px;animation:fadeUp .3s ease}
+.view.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── PAGE HEADER ── */
+.ph{margin-bottom:22px}
+.ph h2{font-family:var(--font-head);font-size:32px;letter-spacing:.04em;line-height:1}
+.ph h2 em{font-family:'Syne',sans-serif;font-style:italic;font-weight:800;font-size:22px;vertical-align:middle;margin-left:6px;color:var(--green)}
+.ph p{font-size:11px;color:var(--muted);margin-top:5px}
+
+/* ── GRID ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.gc2{grid-column:span 2}
+.gc3{grid-column:span 3}
+
+/* ── CARD ── */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:18px;transition:border-color var(--trans)}
+.card:hover{border-color:var(--border2)}
+.card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.card-title{font-family:var(--font-ui);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.card-val{font-family:var(--font-head);font-size:36px;letter-spacing:.02em;line-height:1}
+.card-sub{font-size:10px;color:var(--muted);margin-top:3px}
+
+/* ── BIG STAT ── */
+.big-stat-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* ── RING ── */
+.ring-wrap{display:flex;align-items:center;justify-content:center;padding:10px 0}
+.ring-cont{position:relative;width:130px;height:130px}
+.ring-svg{transform:rotate(-90deg)}
+.ring-bg{fill:none;stroke:rgba(255,255,255,.05);stroke-width:10}
+.ring-fg{fill:none;stroke-width:10;stroke-linecap:round;transition:stroke-dashoffset 1.4s cubic-bezier(.4,0,.2,1)}
+.ring-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.ring-num{font-family:var(--font-head);font-size:30px;line-height:1}
+.ring-lbl{font-size:9px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;font-family:var(--font-ui)}
+
+/* ── METRIC BAR ── */
+.mbar{margin-top:8px}
+.mbar-lbl{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:4px}
+.mbar-track{height:5px;background:rgba(255,255,255,.05);border-radius:99px;overflow:hidden}
+.mbar-fill{height:100%;border-radius:99px;transition:width 1s cubic-bezier(.4,0,.2,1)}
+
+/* ── SIGNAL BADGES ── */
+.sbadge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:5px;font-size:10px;font-weight:600;letter-spacing:.04em;font-family:var(--font-ui)}
+.s-green {background:rgba(0,240,160,.1);color:var(--green)}
+.s-red   {background:rgba(255,61,87,.1);color:var(--red)}
+.s-orange{background:rgba(255,149,0,.1);color:var(--orange)}
+.s-yellow{background:rgba(255,230,0,.1);color:var(--yellow)}
+.s-cyan  {background:rgba(0,212,255,.1);color:var(--cyan)}
+.s-purple{background:rgba(176,107,255,.1);color:var(--purple)}
+.s-phone {background:rgba(255,45,120,.1);color:var(--phone)}
+
+/* ── PHONE EVENTS ── */
+.phone-event{display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(255,45,120,.05);border:1px solid rgba(255,45,120,.12);border-radius:10px;margin-bottom:8px;transition:border-color var(--trans)}
+.phone-event:hover{border-color:rgba(255,45,120,.3)}
+.phone-thumb{width:72px;height:54px;border-radius:6px;background:var(--bg3);object-fit:cover;flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:20px}
+.phone-thumb img{width:100%;height:100%;object-fit:cover}
+.phone-meta{flex:1}
+.phone-meta-time{font-family:var(--font-ui);font-size:12px;font-weight:700;margin-bottom:2px}
+.phone-meta-dur{font-size:11px;color:var(--phone)}
+.phone-active-badge{padding:3px 8px;border-radius:99px;background:rgba(255,45,120,.2);color:var(--phone);font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;animation:glow .9s ease-in-out infinite alternate}
+@keyframes glow{from{box-shadow:0 0 4px rgba(255,45,120,.3)}to{box-shadow:0 0 12px rgba(255,45,120,.6)}}
+
+/* ── HEAD-DOWN EVENTS ── */
+.hd-event{display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(255,230,0,.04);border:1px solid rgba(255,230,0,.1);border-radius:8px;margin-bottom:6px}
+.hd-event-num{font-family:var(--font-head);font-size:22px;color:var(--yellow);width:28px;text-align:center;flex-shrink:0}
+.hd-event-info{flex:1}
+.hd-event-time{font-size:11px;color:var(--muted)}
+.hd-event-dur{font-size:13px;font-weight:700;color:var(--yellow)}
+
+/* ── YAWN SECTION ── */
+.yawn-dots{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.yd{width:16px;height:16px;border-radius:50%;background:var(--cyan);opacity:.7;cursor:pointer;transition:all .15s;position:relative}
+.yd:hover{opacity:1;transform:scale(1.4)}
+.yd::after{content:attr(data-t);position:absolute;bottom:22px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border2);padding:2px 6px;border-radius:4px;font-size:9px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s}
+.yd:hover::after{opacity:1}
+
+/* ── TIMELINE ── */
+.tl{position:relative;padding-left:18px}
+.tl::before{content:'';position:absolute;left:5px;top:0;bottom:0;width:1px;background:var(--border)}
+.tl-item{position:relative;margin-bottom:14px;padding-left:14px}
+.tl-item::before{content:'';position:absolute;left:-13px;top:4px;width:8px;height:8px;border-radius:50%;border:2px solid var(--border2);background:var(--bg)}
+.tl-item.ev-phone::before{border-color:var(--phone);background:var(--phone)}
+.tl-item.ev-head::before{border-color:var(--yellow);background:var(--yellow)}
+.tl-item.ev-yawn::before{border-color:var(--cyan);background:var(--cyan)}
+.tl-item.ev-att::before{border-color:var(--green);background:var(--green)}
+.tl-time{font-size:9px;color:var(--muted);margin-bottom:2px}
+.tl-text{font-size:11px;line-height:1.5}
+
+/* ── TIMER ── */
+.timer-display{font-family:var(--font-head);font-size:64px;letter-spacing:.04em;text-align:center;color:var(--green);margin:12px 0;font-variant-numeric:tabular-nums}
+.timer-display.running{animation:tpulse 2s ease-in-out infinite}
+@keyframes tpulse{0%,100%{opacity:1}50%{opacity:.6}}
+.presets{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin:8px 0}
+.preset{padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-family:var(--font-mono);font-size:10px;cursor:pointer;transition:all var(--trans)}
+.preset:hover{color:var(--text);border-color:var(--green);background:rgba(0,240,160,.06)}
+.dur-inputs{display:flex;align-items:center;gap:6px;justify-content:center;margin:10px 0}
+.dur-in{width:66px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-mono);font-size:16px;text-align:center;padding:6px;outline:none;transition:border-color var(--trans)}
+.dur-in:focus{border-color:var(--green)}
+.dur-lbl{font-size:10px;color:var(--muted)}
+.timer-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+
+/* ── LOG ── */
+.log-item{display:flex;align-items:flex-start;gap:10px;padding:7px 12px;border-bottom:1px solid var(--border);font-size:11px}
+.log-ic{font-size:13px;flex-shrink:0;width:16px;text-align:center}
+.log-msg{flex:1;line-height:1.5}
+.log-t{font-size:9px;color:var(--muted);flex-shrink:0;margin-top:2px}
+
+/* ── SETTINGS ── */
+.srow{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.sinfo-name{font-size:12px;margin-bottom:2px}
+.sinfo-desc{font-size:10px;color:var(--muted)}
+.tog{position:relative;width:38px;height:20px;flex-shrink:0}
+.tog input{opacity:0;width:0;height:0}
+.tog-slider{position:absolute;inset:0;background:rgba(255,255,255,.1);border-radius:99px;cursor:pointer;transition:background var(--trans)}
+.tog-slider::before{content:'';position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:var(--muted);transition:all var(--trans)}
+.tog input:checked+.tog-slider{background:rgba(0,240,160,.3)}
+.tog input:checked+.tog-slider::before{transform:translateX(18px);background:var(--green)}
+select.sel{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:var(--font-mono);font-size:11px;padding:4px 8px;outline:none;cursor:pointer}
+select.sel:focus{border-color:var(--green)}
+input[type=range]{accent-color:var(--green)}
+.ssect-title{font-family:var(--font-ui);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+
+/* ── ATTENTION GRADE ── */
+.grade-display{font-family:var(--font-head);font-size:96px;letter-spacing:.04em;line-height:.9;background:linear-gradient(135deg,var(--green),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+/* ── CHART ── */
+.ch-wrap{position:relative}
+
+/* ── PHONE SCREENSHOT VIEWER ── */
+.phone-event-card{
+  display:grid;
+  grid-template-columns:80px 1fr auto;
+  align-items:center;
+  gap:12px;
+  padding:12px 14px;
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:12px;
+  margin-bottom:10px;
+  transition:all var(--trans);
+}
+.phone-event-card:hover{
+  border-color:var(--phone);
+  background:rgba(255,45,120,.06);
+  transform:translateX(2px);
+  box-shadow:0 4px 12px rgba(255,45,120,.1);
+}
+
+.phone-event-thumb{
+  width:80px;
+  height:60px;
+  border-radius:10px;
+  overflow:hidden;
+  background:var(--bg2);
+  border:1px solid var(--border2);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+}
+.phone-thumb-img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+.phone-no-thumb{
+  font-size:28px;
+  opacity:.5;
+}
+
+.phone-event-info{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+.phone-event-time{
+  font-weight:700;
+  color:var(--text);
+  font-size:12px;
+  font-family:var(--font-ui);
+}
+.phone-event-dur{
+  font-size:11px;
+  color:var(--phone);
+}
+.phone-event-hint{
+  font-size:9px;
+  color:var(--muted);
+  font-style:italic;
+}
+
+.phone-event-badge{
+  padding:4px 8px;
+  background:rgba(255,45,120,.12);
+  border:1px solid rgba(255,45,120,.25);
+  border-radius:6px;
+  font-size:10px;
+  font-weight:700;
+  color:var(--phone);
+  text-align:center;
+  flex-shrink:0;
+}
+
+/* Phone Modal Styles */
+#phoneScreenshotModal{
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  bottom:0;
+  z-index:10000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  opacity:0;
+  transition:opacity .2s ease;
+  padding:20px;
+}
+
+.phone-modal-overlay{
+  position:absolute;
+  inset:0;
+  background:rgba(0,0,0,.85);
+  backdrop-filter:blur(2px);
+}
+
+.phone-modal-container{
+  position:relative;
+  z-index:10001;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:16px;
+  max-width:90vw;
+  max-height:90vh;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  box-shadow:0 20px 60px rgba(0,0,0,.8);
+  animation:modalSlideIn .3s cubic-bezier(.4,0,.2,1);
+}
+
+@keyframes modalSlideIn{
+  from{
+    opacity:0;
+    transform:scale(.95) translateY(10px);
+  }
+  to{
+    opacity:1;
+    transform:scale(1) translateY(0);
+  }
+}
+
+.phone-modal-header{
+  padding:16px 20px;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:linear-gradient(135deg,rgba(255,45,120,.05),rgba(0,0,0,.2));
+}
+
+.phone-modal-title{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-family:var(--font-ui);
+  font-weight:700;
+  font-size:14px;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+
+.phone-modal-icon{
+  font-size:20px;
+}
+
+.phone-modal-time{
+  font-family:var(--font-mono);
+  font-size:10px;
+  color:var(--muted);
+  flex:1;
+  text-align:center;
+}
+
+.phone-modal-close{
+  width:36px;
+  height:36px;
+  border-radius:8px;
+  border:1px solid rgba(255,61,87,.3);
+  background:rgba(255,61,87,.1);
+  color:var(--red);
+  cursor:pointer;
+  font-size:18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:all var(--trans);
+  font-weight:700;
+}
+.phone-modal-close:hover{
+  background:rgba(255,61,87,.2);
+  border-color:rgba(255,61,87,.5);
+}
+
+.phone-modal-content{
+  flex:1;
+  overflow:auto;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--bg);
+  padding:20px;
+  min-height:300px;
+}
+
+.phone-modal-image{
+  max-width:100%;
+  max-height:100%;
+  border-radius:12px;
+  display:block;
+  object-fit:contain;
+  box-shadow:0 10px 40px rgba(0,0,0,.6);
+}
+
+.phone-modal-footer{
+  padding:14px 20px;
+  border-top:1px solid var(--border);
+  background:var(--bg3);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.phone-modal-info{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex:1;
+}
+
+.phone-modal-label{
+  font-size:10px;
+  color:var(--muted);
+  font-style:italic;
+}
+
+/* ── TOAST ── */
+.toast-area{position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:7px}
+.toast{padding:10px 14px;background:var(--bg2);border-radius:10px;border:1px solid var(--border2);font-size:11px;max-width:280px;animation:toastIn .3s ease;display:flex;align-items:center;gap:9px;box-shadow:0 8px 28px rgba(0,0,0,.5)}
+.toast.t-red{border-color:rgba(255,61,87,.4)}
+.toast.t-orange{border-color:rgba(255,149,0,.4)}
+.toast.t-phone{border-color:rgba(255,45,120,.4)}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+/* ── DIVIDER ── */
+.div{height:1px;background:var(--border);margin:16px 0}
+
+/* ── MISC ── */
+.mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}.mt20{margin-top:20px}
+.mb8{margin-bottom:8px}.mb12{margin-bottom:12px}
+.flex{display:flex}.items-c{align-items:center}.j-between{justify-content:space-between}
+.gap8{gap:8px}.gap12{gap:12px}
+.muted{color:var(--muted)}.fw7{font-weight:700}
+.no-data{text-align:center;padding:32px;color:var(--muted);font-size:11px}
+
+@media(max-width:1100px){.g4{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr}}
+@media(max-width:768px){.g2,.g3,.g4{grid-template-columns:1fr}.shell{grid-template-columns:1fr}.sidebar{display:none}}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- ── SIDEBAR ── -->
+<nav class="sidebar">
+  <div class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg></div>
+  <div class="nav-btn active" onclick="sv('live')" id="nb-live"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12"/></svg><div class="nav-tip">Live</div></div>
+  <div class="nav-btn" onclick="sv('summary')" id="nb-summary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><div class="nav-tip">Summary</div></div>
+  <div class="nav-btn" onclick="sv('phone')" id="nb-phone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg><div class="nav-tip">Phone Log</div></div>
+  <div class="nav-btn" onclick="sv('timer')" id="nb-timer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><div class="nav-tip">Timer</div></div>
+  <div class="nav-btn" onclick="sv('settings')" id="nb-settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><div class="nav-tip">Settings</div></div>
+</nav>
+
+<!-- ── MAIN ── -->
+<div class="main">
+<header class="topbar">
+  <div class="topbar-brand">
+    <h1>Class<span>Pulse</span></h1>
+    <div class="topbar-student" id="studentNameLabel">STUDENT</div>
+  </div>
+  <div class="topbar-right">
+    <div id="statusPill" class="pill idle"><div class="dot" id="statusDot"></div><span id="statusTxt">Idle</span></div>
+    <button class="btn btn-go" id="mainBtn" onclick="toggleSession()">Start Session</button>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════ LIVE ══ -->
+<div class="view active" id="view-live">
+  <div class="ph"><h2>Live <em>Monitor</em></h2><p>Real-time single-student behaviour tracking</p></div>
+
+  <!-- TOP STAT STRIP -->
+  <div class="g4 mb12">
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Attention Score</span><div class="big-stat-icon" style="background:rgba(0,240,160,.1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12"/><circle cx="12" cy="12" r="3"/></svg></div></div>
+      <div class="card-val" id="liveAttScore" style="color:var(--green)">—</div>
+      <div class="card-sub">this moment</div>
+      <div class="mbar mt8"><div class="mbar-track"><div class="mbar-fill" id="liveAttBar" style="width:0%;background:var(--green)"></div></div></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Session Attention</span><div class="big-stat-icon" style="background:rgba(0,212,255,.1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div></div>
+      <div class="card-val" id="liveSessionAtt" style="color:var(--cyan)">—</div>
+      <div class="card-sub">average this session</div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Yawns Detected</span><div class="big-stat-icon" style="background:rgba(0,212,255,.08)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></div></div>
+      <div class="card-val" id="liveYawnCount" style="color:var(--cyan)">0</div>
+      <div class="card-sub">total this session</div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Phone Usage</span><div class="big-stat-icon" style="background:rgba(255,45,120,.1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--phone)" stroke-width="2.5"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div></div>
+      <div class="card-val" id="livePhoneTime" style="color:var(--phone)">0s</div>
+      <div class="card-sub" id="livePhoneEvents">0 events recorded</div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <!-- Left: attention ring + signals + attention chart -->
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="card">
+        <div class="card-hd"><span class="card-title">Real-Time Attention</span><span id="liveAttLabel" class="sbadge s-green">ATTENTIVE</span></div>
+        <div style="display:flex;align-items:center;gap:20px">
+          <div class="ring-wrap" style="padding:0">
+            <div class="ring-cont">
+              <svg class="ring-svg" width="130" height="130" viewBox="0 0 130 130">
+                <circle class="ring-bg" cx="65" cy="65" r="54"/>
+                <circle class="ring-fg" id="ringFg" cx="65" cy="65" r="54" stroke="var(--green)" stroke-dasharray="339" stroke-dashoffset="339"/>
+              </svg>
+              <div class="ring-inner">
+                <div class="ring-num" id="ringNum" style="color:var(--green)">0%</div>
+                <div class="ring-lbl">Attention</div>
+              </div>
+            </div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:8px" id="signalRows"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd"><span class="card-title">Attention Over Time</span></div>
+        <div class="ch-wrap" style="height:150px"><canvas id="attChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Right: head-down + yawn + phone live status -->
+    <div style="display:flex;flex-direction:column;gap:14px">
+
+      <div class="card" id="headDownCard">
+        <div class="card-hd">
+          <span class="card-title">Head-Down Tracker</span>
+          <span class="sbadge s-green" id="headStatusBadge">UP</span>
+        </div>
+        <div class="g2" style="gap:10px">
+          <div>
+            <div style="font-family:var(--font-head);font-size:38px;color:var(--yellow)" id="hdEventCount">0</div>
+            <div class="card-sub">total events</div>
+          </div>
+          <div>
+            <div style="font-family:var(--font-head);font-size:38px;color:var(--yellow)" id="hdTotalMins">0.0<span style="font-size:16px">min</span></div>
+            <div class="card-sub">cumulative time</div>
+          </div>
+        </div>
+        <div id="hdCurrentBanner" style="display:none;margin-top:10px;padding:8px 12px;background:rgba(255,230,0,.08);border:1px solid rgba(255,230,0,.2);border-radius:8px;font-size:11px;color:var(--yellow)">
+          ⬇ Head-down in progress — <span id="hdCurrentSecs">0</span>s
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd">
+          <span class="card-title">Sleep Detector</span>
+          <span class="sbadge s-green" id="sleepStatusBadge">AWAKE</span>
+        </div>
+        <div class="g2" style="gap:10px">
+          <div>
+            <div style="font-family:var(--font-head);font-size:38px;color:var(--red)" id="sleepEventCount">0</div>
+            <div class="card-sub">total sleep events</div>
+          </div>
+          <div>
+            <div style="font-family:var(--font-head);font-size:38px;color:var(--red)" id="sleepTotalMins">0.0<span style="font-size:16px">min</span></div>
+            <div class="card-sub">cumulative sleep time</div>
+          </div>
+        </div>
+        <div id="sleepCurrentBanner" style="display:none;margin-top:10px;padding:8px 12px;background:rgba(255,61,87,.1);border:1px solid rgba(255,61,87,.3);border-radius:8px;font-size:11px;color:var(--red)">
+          😴 Student sleeping — active for <span id="sleepCurrentSecs">0</span>s
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd"><span class="card-title">Yawn Activity</span><span id="yawnLiveBadge" class="sbadge s-cyan">NO YAWN</span></div>
+        <div style="font-family:var(--font-head);font-size:42px;color:var(--cyan)" id="yawnBig">0</div>
+        <div class="card-sub">yawns detected this session</div>
+        <div class="yawn-dots mt12" id="yawnDots"></div>
+      </div>
+
+      <div class="card" id="phoneCard">
+        <div class="card-hd">
+          <span class="card-title">Phone Detection</span>
+          <span class="sbadge" id="phoneLiveBadge" style="background:rgba(90,106,126,.12);color:var(--muted)">IDLE</span>
+        </div>
+        <div class="g2" style="gap:10px">
+          <div>
+            <div style="font-family:var(--font-head);font-size:38px;color:var(--phone)" id="phoneEventsLive">0</div>
+            <div class="card-sub">events recorded</div>
+          </div>
+          <div>
+            <div style="font-family:var(--font-head);font-size:38px;color:var(--phone)" id="phoneTotalLive">0s</div>
+            <div class="card-sub">total usage time</div>
+          </div>
+        </div>
+        <div id="phoneActiveBanner" style="display:none;margin-top:10px;padding:8px 12px;background:rgba(255,45,120,.1);border:1px solid rgba(255,45,120,.25);border-radius:8px;font-size:11px;color:var(--phone)">
+          📱 Phone in use — active for <span id="phoneCurrentSecs">0</span>s
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ SUMMARY ══ -->
+<div class="view" id="view-summary">
+  <div class="ph"><h2>After-Class <em>Summary</em></h2><p>Complete session analytics</p></div>
+
+  <!-- Grade hero -->
+  <div class="card mb12" style="background:linear-gradient(135deg,rgba(0,240,160,.06),rgba(0,212,255,.04));border-color:rgba(0,240,160,.12)">
+    <div style="display:flex;align-items:flex-end;gap:24px;flex-wrap:wrap">
+      <div>
+        <div style="font-family:var(--font-ui);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Attention Grade</div>
+        <div class="grade-display" id="sumGrade">—</div>
+      </div>
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:13px;line-height:1.7;margin-bottom:16px" id="sumDesc">Start a session to generate the summary.</div>
+        <div style="display:flex;gap:28px;flex-wrap:wrap">
+          <div><div style="font-family:var(--font-head);font-size:28px" id="sumAttPct">—</div><div class="card-sub">Session Attention</div></div>
+          <div><div style="font-family:var(--font-head);font-size:28px;color:var(--cyan)" id="sumYawnTotal">—</div><div class="card-sub">Total Yawns</div></div>
+          <div><div style="font-family:var(--font-head);font-size:28px;color:var(--yellow)" id="sumHdMins">—</div><div class="card-sub">Head-Down Mins</div></div>
+          <div><div style="font-family:var(--font-head);font-size:28px;color:var(--red)" id="sumSleepMins">—</div><div class="card-sub">Sleep Time Mins</div></div>
+          <div><div style="font-family:var(--font-head);font-size:28px;color:var(--phone)" id="sumPhoneSecs">—</div><div class="card-sub">Phone Usage Secs</div></div>
+          <div><div style="font-family:var(--font-head);font-size:28px;color:var(--muted)" id="sumDuration">—</div><div class="card-sub">Session Length</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Attention Timeline</span></div>
+      <div class="ch-wrap" style="height:200px"><canvas id="sumAttChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Behaviour Distribution</span></div>
+      <div class="ch-wrap" style="height:200px"><canvas id="sumDonut"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Yawn Timeline</span><span style="font-size:10px;color:var(--muted)">each marker = 1 yawn event</span></div>
+      <div class="ch-wrap" style="height:180px"><canvas id="sumYawnChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Head-Down Episodes</span></div>
+      <div id="sumHdList" style="max-height:200px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <div class="card mt12">
+    <div class="card-hd"><span class="card-title">Full Event Timeline</span></div>
+    <div class="tl" id="sumTimeline" style="max-height:300px;overflow-y:auto;padding-right:8px"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ PHONE LOG ══ -->
+<div class="view" id="view-phone">
+  <div class="ph"><h2>Phone <em>Log</em></h2><p>Every detected phone-usage event with auto-captured screenshots</p></div>
+
+  <div class="g2 mb12">
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Total Phone Events</span></div>
+      <div class="card-val" id="plTotalEvents" style="color:var(--phone)">0</div>
+      <div class="card-sub">confirmed detections this session</div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Total Usage Time</span></div>
+      <div class="card-val" id="plTotalSecs" style="color:var(--phone)">0s</div>
+      <div class="card-sub">cumulative seconds on phone</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-title">Phone Events — Screenshots</span><span id="plActiveStatus"></span></div>
+    <div id="phoneEventList"><div class="no-data">No phone events recorded yet.</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ TIMER ══ -->
+<div class="view" id="view-timer">
+  <div class="ph"><h2>Session <em>Timer</em></h2><p>Set class duration · auto-stop &amp; generate report</p></div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-title" style="text-align:center;margin-bottom:8px">Class Duration</div>
+      <div class="dur-inputs">
+        <input type="number" class="dur-in" id="durH" value="0" min="0" max="5">
+        <span class="dur-lbl">hr</span>
+        <input type="number" class="dur-in" id="durM" value="45" min="0" max="59">
+        <span class="dur-lbl">min</span>
+        <input type="number" class="dur-in" id="durS" value="0" min="0" max="59">
+        <span class="dur-lbl">sec</span>
+      </div>
+      <div class="presets">
+        <button class="preset" onclick="setDur(0,30,0)">30m</button>
+        <button class="preset" onclick="setDur(0,45,0)">45m</button>
+        <button class="preset" onclick="setDur(1,0,0)">1h</button>
+        <button class="preset" onclick="setDur(1,30,0)">1.5h</button>
+        <button class="preset" onclick="setDur(2,0,0)">2h</button>
+      </div>
+      <div class="timer-display" id="timerDisp">00:45:00</div>
+      <div class="timer-btns">
+        <button class="btn btn-go" id="tStartBtn" onclick="tStart()">Start Session</button>
+        <button class="btn btn-ghost" id="tPauseBtn" onclick="tPause()" style="display:none">Pause</button>
+        <button class="btn btn-stop" id="tStopBtn" onclick="tStop()" style="display:none">End &amp; Report</button>
+      </div>
+      <div style="margin-top:12px;padding:10px;background:var(--bg3);border-radius:9px;font-size:10px;color:var(--muted);line-height:1.7">
+        ⏱ Timer auto-ends the session and generates the full report when time is up.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Session Log</span><button class="btn btn-ghost" style="font-size:9px;padding:3px 8px" onclick="clearLog()">Clear</button></div>
+      <div id="sessionLog" style="max-height:420px;overflow-y:auto"><div class="no-data">No session started</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ SETTINGS ══ -->
+<div class="view" id="view-settings">
+  <div class="ph"><h2>System <em>Settings</em></h2></div>
+  <div class="g2">
+    <div>
+      <div class="ssect-title">Student &amp; Camera</div>
+      <div class="srow"><div class="sinfo"><div class="sinfo-name">Student Name</div><div class="sinfo-desc">Shown in reports &amp; dashboard</div></div><input type="text" id="sNameIn" value="Student" style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-mono);font-size:11px;padding:5px 9px;outline:none;width:130px"></div>
+      <div class="srow"><div class="sinfo"><div class="sinfo-name">Webcam Index</div></div><select class="sel" id="sCam"><option>0</option><option>1</option><option>2</option></select></div>
+      <div class="srow"><div class="sinfo"><div class="sinfo-name">Resolution</div></div><select class="sel" id="sRes"><option>320×240</option><option selected>640×480</option><option>1280×720</option></select></div>
+      <div class="srow"><div class="sinfo"><div class="sinfo-name">TRT Input Size</div></div><select class="sel" id="sTRT"><option selected>320</option><option>640</option></select></div>
+
+      <div class="ssect-title mt16">Detection Thresholds</div>
+      <div class="srow"><div class="sinfo"><div class="sinfo-name">Person Confidence</div><div class="sinfo-desc">Min YOLO conf: <b id="confV">0.35</b></div></div><input type="range" min=".1" max=".9" step=".05" value=".35" oninput="document.getElementById('confV').textContent=parseFloat(this.value).toFixed(2)"></div>
+      <div class="srow"><div class="sinfo"><div class="sinfo-name">Phone Confidence</div><div class="sinfo-desc">Min phone conf: <b id="phoneConfV">0.35</b></div></div><input type="range" min=".1" max=".9" step=".05" value=".35" oninput="document.getElementById('phoneConfV').textContent=parseFloat(this.value).toFixed(2)"></div>
+      <div class="srow"><div class="sinfo"><div class="sinfo-name">Min Phone Frames</div><div class="sinfo-desc">Frames before phone event: <b id="phoneFrameV">6</b></div></div><input type="range" min="2" max="20" step="1" value="6" oninput="document.getElementById('phoneFrameV').textContent=this.value"></div>
+      <div class="srow"><div class="sinfo"><div class="sinfo-name">Head-Down Frames</div><div class="sinfo-desc">Sustained frames: <b id="hdFrameV">10</b></div></div><input type="range" min="3" max="30" step="1" value="10" oninput="document.getElementById('hdFrameV').textContent=this.value"></div>
+      <div class="srow"><div class="sinfo"><div class="sinfo-name">Min Yawn Frames</div><div class="sinfo-desc">Frames mouth must be open: <b id="yawnFrameV">8</b></div></div><input type="range" min="3" max="20" step="1" value="8" oninput="document.getElementById('yawnFrameV').textContent=this.value"></div>
+    </div>
+    <div>
+      <div class="ssect-title">Alerts &amp; Notifications</div>
+      <div class="srow"><div class="sinfo"><div class="sinfo-name">Toast Notifications</div></div><label class="tog"><input type="checkbox" checked id="toastOn"><div class="tog-slider"></div></label></div>
+      <div class="srow"><div class="sinfo"><div class="sinfo-name">Phone Alert Sound</div></div><label class="tog"><input type="checkbox" id="phoneSnd"><div class="tog-slider"></div></label></div>
+      <div class="srow"><div class="sinfo"><div class="sinfo-name">Auto-capture Screenshots</div><div class="sinfo-desc">Save phone event frame to disk</div></div><label class="tog"><input type="checkbox" checked id="autoSnap"><div class="tog-slider"></div></label></div>
+
+      <div class="ssect-title mt16">Yawn Detection Tuning</div>
+      <div class="srow"><div class="sinfo"><div class="sinfo-name">Mouth Open Ratio</div><div class="sinfo-desc">MAR threshold: <b id="morV">0.38</b></div></div><input type="range" min=".2" max=".7" step=".02" value=".38" oninput="document.getElementById('morV').textContent=parseFloat(this.value).toFixed(2)"></div>
+      <div class="srow"><div class="sinfo"><div class="sinfo-name">Mouth Dark Ratio</div><div class="sinfo-desc">Darkness threshold: <b id="mdrV">0.30</b></div></div><input type="range" min=".1" max=".6" step=".02" value=".30" oninput="document.getElementById('mdrV').textContent=parseFloat(this.value).toFixed(2)"></div>
+      <div class="srow"><div class="sinfo"><div class="sinfo-name">Yawn Cooldown Frames</div><div class="sinfo-desc">Ignore after yawn: <b id="ycdV">25</b></div></div><input type="range" min="5" max="60" step="1" value="25" oninput="document.getElementById('ycdV').textContent=this.value"></div>
+
+      <div class="ssect-title mt16">Export</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+        <button class="btn btn-ghost" onclick="exportJSON()">Export JSON</button>
+        <button class="btn btn-ghost" onclick="exportCSV()">Export CSV</button>
+        <button class="btn btn-stop" onclick="resetAll()">Reset All Data</button>
+      </div>
+      <div style="margin-top:12px">
+        <button class="btn btn-go" onclick="saveSettings()">Save Settings</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<div class="toast-area" id="toastArea"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// STATE MODEL
+// ══════════════════════════════════════════════════════════════════
+let S = {
+  studentName     : 'Student',
+  sessionActive   : false,
+  sessionStart    : null,
+  sessionEnd      : null,
+
+  // Live frame state
+  attentionScore  : 0,
+  attentionLabel  : 'UNKNOWN',
+  attentionPct    : 0,       // session average
+  eyeState        : 'UNKNOWN',
+  headState       : 'UNKNOWN',
+  sleepState      : 'UNKNOWN',
+  yawnState       : 'NO_YAWN',
+  faceFound       : false,
+  present         : false,
+
+  // Yawn
+  yawnCount       : 0,
+  yawnMarkers     : [],      // timestamps
+  yawnEvents      : [],
+
+  // Head-down
+  hdCount         : 0,
+  hdTotalMins     : 0,
+  hdTotalSecs     : 0,
+  hdCurrentSecs   : 0,
+  hdCurrentActive : false,
+  hdEvents        : [],
+
+  // Sleep
+  sleepCount      : 0,
+  sleepTotalMins  : 0,
+  sleepTotalSecs  : 0,
+  sleepCurrentSecs: 0,
+  sleepCurrentActive: false,
+  sleepEvents     : [],
+
+  // Phone
+  phoneActive     : false,
+  phoneEventsCount: 0,
+  phoneTotalSecs  : 0,
+  phoneCurrentSecs: 0,
+  phoneEvents     : [],
+
+  // Timeseries (for charts)
+  attTs           : [],      // [{t, v}]
+};
+
+let simInterval   = null;
+let clockInterval = null;
+let fps           = 0;
+let frameCount    = 0;
+let logEntries    = [];
+
+// Persist full event log for summary view
+let eventTimeline = [];   // [{type, time, text}]
+let pollInterval  = null;
+
+// ══════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════════════════
+function sv(name) {
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  document.getElementById('nb-'+name).classList.add('active');
+  if (name==='summary') renderSummary();
+  if (name==='phone')   renderPhoneLog();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SESSION
+// ══════════════════════════════════════════════════════════════════
+function toggleSession() {
+  S.sessionActive ? endSession() : startSession();
+}
+
+function startSession() {
+  S.sessionActive   = true;
+  S.sessionStart    = Date.now();
+  S.sessionEnd      = null;
+  S.yawnCount       = 0; S.yawnMarkers = []; S.yawnEvents = [];
+  S.hdCount=0; S.hdTotalMins=0; S.hdTotalSecs=0; S.hdEvents=[];
+  S.phoneEventsCount=0; S.phoneTotalSecs=0; S.phoneEvents=[];
+  S.attTs=[];
+  eventTimeline=[];
+
+  document.getElementById('statusPill').className='pill live';
+  document.getElementById('statusDot').classList.add('blink');
+  document.getElementById('statusTxt').textContent='Live';
+  document.getElementById('mainBtn').className='btn btn-stop';
+  document.getElementById('mainBtn').textContent='End Session';
+  document.getElementById('studentNameLabel').textContent=
+    (S.studentName||'Student').toUpperCase();
+
+  log('info','Session started');
+  toast('Session live — monitoring '+S.studentName,'info');
+
+  // Start polling real-time state.json from Jetson
+  startPolling();
+
+  if (!timerRunning && !timerDone) {
+    const h=parseInt(document.getElementById('durH').value)||0;
+    const m=parseInt(document.getElementById('durM').value)||45;
+    const s=parseInt(document.getElementById('durS').value)||0;
+    timerRemaining = h*3600+m*60+s;
+    tStart();
+  }
+}
+
+function endSession() {
+  S.sessionActive = false;
+  S.sessionEnd    = Date.now();
+  
+  // Stop polling
+  stopPolling();
+  
+  clearInterval(simInterval);
+  simInterval = null;
+
+  document.getElementById('statusPill').className='pill idle';
+  document.getElementById('statusDot').classList.remove('blink');
+  document.getElementById('statusTxt').textContent='Idle';
+  document.getElementById('mainBtn').className='btn btn-go';
+  document.getElementById('mainBtn').textContent='Start Session';
+
+  log('ok','Session ended — report ready');
+  toast('Session complete! View Summary for full report.','ok');
+  tStop();
+  renderSummary();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SIMULATION  (replaces live Jetson state.json polling in demo)
+// Realistic single-student behaviour model
+// ══════════════════════════════════════════════════════════════════
+const PERSONA = {
+  attBase: 0.70, yawnProb: 0.06, headDownProb: 0.08,
+  drowsyProb: 0.10, phoneProb: 0.04
+};
+let _prevYawnState = 'NO_YAWN';
+let _prevHdState   = false;
+let _prevPhoneActive = false;
+let _phoneTimer    = 0;  // frames phone has been active
+let _hdTimer       = 0;
+let _hdActive      = false;
+let _phoneActive   = false;
+let _phoneDurAcc   = 0;
+let _hdDurAcc      = 0;
+
+function simFrame() {
+  if (!S.sessionActive) return;
+  frameCount++;
+  const now = new Date();
+  const ts  = now.toLocaleTimeString();
+  const noise = () => (Math.random()-.5)*.18;
+
+  // Attention
+  let score = PERSONA.attBase + noise();
+  const yawning = Math.random() < PERSONA.yawnProb;
+  const drowsy  = Math.random() < PERSONA.drowsyProb;
+
+  // Head down (sustained)
+  if (!_hdActive) {
+    if (Math.random() < PERSONA.headDownProb) { _hdActive=true; _hdTimer=0; _hdDurAcc=0; }
+  } else {
+    _hdTimer++;
+    _hdDurAcc += 1.8/1000;  // ~1.8s per frame
+    if (_hdTimer > 10 && Math.random() < 0.06) {
+      // end head-down
+      const dur = _hdDurAcc;
+      S.hdCount++;
+      S.hdTotalSecs += dur;
+      S.hdTotalMins  = S.hdTotalSecs/60;
+      S.hdEvents.push({start:ts, duration_sec: Math.round(dur*10)/10});
+      eventTimeline.push({type:'ev-head', time:ts, text:'Head-down event #'+S.hdCount+' — '+Math.round(dur)+'s'});
+      _hdActive=false; _hdTimer=0; _hdDurAcc=0;
+    }
+  }
+  S.hdCurrentActive = _hdActive;
+  S.hdCurrentSecs   = _hdActive ? Math.round(_hdDurAcc) : 0;
+
+  // Phone (sustained)
+  if (!_phoneActive) {
+    if (Math.random() < PERSONA.phoneProb) {
+      _phoneActive=true; _phoneDurAcc=0; _phoneTimer=0;
+      S.phoneActive=true;
+      // Generate fake thumbnail
+      const ev = {start:ts, duration_sec:0, thumbnail_b64:null, screenshot_path:null};
+      S.phoneEvents.push(ev);
+      S.phoneEventsCount = S.phoneEvents.length;
+      eventTimeline.push({type:'ev-phone', time:ts, text:'📱 Phone detected — event #'+S.phoneEventsCount});
+      toast(S.studentName+' took out their phone','phone');
+    }
+  } else {
+    _phoneTimer++;
+    _phoneDurAcc += 1.8/1000;
+    // Update current event duration
+    if (S.phoneEvents.length>0)
+      S.phoneEvents[S.phoneEvents.length-1].duration_sec = Math.round(_phoneDurAcc*10)/10;
+    if (_phoneTimer > 8 && Math.random() < 0.07) {
+      S.phoneTotalSecs += _phoneDurAcc;
+      _phoneActive=false; _phoneDurAcc=0; _phoneTimer=0;
+      S.phoneActive=false;
+    }
+  }
+  S.phoneCurrentSecs = _phoneActive ? Math.round(_phoneDurAcc) : 0;
+
+  // Adjust score for behaviours
+  if (yawning) score -= 0.15;
+  if (drowsy)  score -= 0.25;
+  if (_hdActive) score -= 0.22;
+  if (_phoneActive) score -= 0.30;
+
+  score = Math.max(0, Math.min(1, score));
+  S.attentionScore = score;
+  S.attentionLabel = score>=0.65?'ATTENTIVE':drowsy||_hdActive?'DROWSY':'DISTRACTED';
+  S.eyeState       = drowsy ? 'DROWSY' : 'OPEN';
+  S.headState      = _hdActive ? 'DOWN' : 'UP';
+  S.yawnState      = yawning ? 'YAWNING' : 'NO_YAWN';
+  S.faceFound      = Math.random() > 0.03;
+  S.present        = true;
+
+  // Count yawns (on transition)
+  if (yawning && _prevYawnState==='NO_YAWN') {
+    S.yawnCount++;
+    S.yawnMarkers.push(ts);
+    S.yawnEvents.push({time:ts, duration_sec:0.6});
+    eventTimeline.push({type:'ev-yawn', time:ts, text:'😮 Yawn #'+S.yawnCount+' detected'});
+    toast(S.studentName+' is yawning (total: '+S.yawnCount+')','warn');
+  }
+  _prevYawnState = S.yawnState;
+
+  // Session attention %
+  const elapsed = (Date.now()-S.sessionStart)/1000;
+  S.attentionPct  = Math.round(score*85 + (S.yawnCount<3?5:0));  // rough session average
+  S.hdTotalMins   = Math.round(S.hdTotalSecs/60*10)/10;
+  S.phoneEventsCount = S.phoneEvents.length;
+
+  // Timeseries
+  if (frameCount % 2 === 0) {
+    S.attTs.push({t:ts, v:Math.round(score*100)});
+    if (S.attTs.length>80) S.attTs.shift();
+  }
+
+  updateLive();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// LIVE VIEW UPDATE
+// ══════════════════════════════════════════════════════════════════
+let attChartInst = null;
+
+// ══════════════════════════════════════════════════════════════════
+// LIVE VIEW UPDATE
+// ══════════════════════════════════════════════════════════════════
+let lastAttentionUpdate = 0;  // Throttle attention % updates to every 5s
+const ATTENTION_UPDATE_INTERVAL = 5000;  // 5 seconds
+
+function updateLive() {
+  const now = Date.now();
+  const shouldUpdateAttention = (now - lastAttentionUpdate) >= ATTENTION_UPDATE_INTERVAL;
+  
+  if (shouldUpdateAttention) {
+    lastAttentionUpdate = now;
+  }
+  
+  const att    = Math.round(S.attentionScore*100);
+  const attCol = att>=65?'var(--green)':att>=35?'var(--orange)':'var(--red)';
+  const attBadge = att>=65?'s-green':att>=35?'s-orange':'s-red';
+
+  // Top stats - ONLY UPDATE ATTENTION % EVERY 5 SECONDS
+  if (shouldUpdateAttention) {
+    document.getElementById('liveAttScore').textContent = att+'%';
+    document.getElementById('liveAttScore').style.color = attCol;
+    document.getElementById('liveAttBar').style.width = att+'%';
+    document.getElementById('liveAttBar').style.background = attCol;
+  }
+  
+  // These stats update normally (not throttled) - they still update frequently
+  document.getElementById('liveSessionAtt').textContent = S.attentionPct+'%';
+  document.getElementById('liveSessionAtt').style.color = S.attentionPct>=65?'var(--cyan)':S.attentionPct>=35?'var(--orange)':'var(--red)';
+  document.getElementById('liveYawnCount').textContent = S.yawnCount;
+  document.getElementById('livePhoneTime').textContent = Math.round(S.phoneTotalSecs)+'s';
+  document.getElementById('livePhoneEvents').textContent = S.phoneEventsCount+' event'+(S.phoneEventsCount!==1?'s':'');
+
+  // Ring - ONLY UPDATE EVERY 5 SECONDS
+  if (shouldUpdateAttention) {
+    const circ = 339;
+    document.getElementById('ringFg').style.strokeDashoffset = circ - (att/100)*circ;
+    document.getElementById('ringFg').style.stroke = attCol;
+    document.getElementById('ringNum').textContent = att+'%';
+    document.getElementById('ringNum').style.color = attCol;
+
+    // Attention badge
+    const ab = document.getElementById('liveAttLabel');
+    ab.textContent = S.attentionLabel;
+    ab.className   = 'sbadge '+attBadge;
+  }
+
+  // Signal rows - UPDATE NORMALLY
+  const sr = document.getElementById('signalRows');
+  const rows = [
+    {l:'Eye State',  v:S.eyeState,   c:S.eyeState==='OPEN'?'s-green':S.eyeState==='DROWSY'?'s-yellow':'s-red'},
+    {l:'Head',       v:S.headState,  c:S.headState==='UP'?'s-green':'s-yellow'},
+    {l:'Sleep',      v:S.sleepState==='SLEEPING'?'SLEEPING':'AWAKE', c:S.sleepState==='SLEEPING'?'s-red':'s-green'},
+    {l:'Yawning',    v:S.yawnState==='YAWNING'?'YES':'NO', c:S.yawnState==='YAWNING'?'s-cyan':'s-green'},
+    {l:'Face Visible',v:S.faceFound?'YES':'NO', c:S.faceFound?'s-green':'s-orange'},
+  ];
+  sr.innerHTML = rows.map(r=>`<div class="flex items-c j-between"><span style="font-size:10px;color:var(--muted)">${r.l}</span><span class="sbadge ${r.c}">${r.v}</span></div>`).join('');
+
+  // Head-down card - UPDATE NORMALLY
+  document.getElementById('hdEventCount').textContent = S.hdCount;
+  document.getElementById('hdTotalMins').innerHTML =
+    S.hdTotalMins.toFixed(1)+'<span style="font-size:16px">min</span>';
+  const headBadge = document.getElementById('headStatusBadge');
+  headBadge.textContent = S.headState==='DOWN'?'DOWN':'UP';
+  headBadge.className   = 'sbadge '+(S.headState==='DOWN'?'s-yellow':'s-green');
+  const hdBanner = document.getElementById('hdCurrentBanner');
+  hdBanner.style.display = S.hdCurrentActive ? 'block':'none';
+  document.getElementById('hdCurrentSecs').textContent = S.hdCurrentSecs;
+
+  // Sleep card - UPDATE NORMALLY
+  document.getElementById('sleepEventCount').textContent = S.sleepCount;
+  document.getElementById('sleepTotalMins').innerHTML =
+    S.sleepTotalMins.toFixed(1)+'<span style="font-size:16px">min</span>';
+  const sleepBadge = document.getElementById('sleepStatusBadge');
+  sleepBadge.textContent = S.sleepCurrentActive ? 'SLEEPING' : 'AWAKE';
+  sleepBadge.className   = 'sbadge '+(S.sleepCurrentActive?'s-red':'s-green');
+  const sleepBanner = document.getElementById('sleepCurrentBanner');
+  sleepBanner.style.display = S.sleepCurrentActive ? 'block':'none';
+  document.getElementById('sleepCurrentSecs').textContent = S.sleepCurrentSecs;
+
+  // Yawn - UPDATE NORMALLY
+  document.getElementById('yawnBig').textContent = S.yawnCount;
+  const ylb = document.getElementById('yawnLiveBadge');
+  ylb.textContent = S.yawnState==='YAWNING'?'YAWNING!':'No Yawn';
+  ylb.className   = 'sbadge '+(S.yawnState==='YAWNING'?'s-cyan':'s-green');
+  const dots = document.getElementById('yawnDots');
+  dots.innerHTML = S.yawnMarkers.slice(-20).map((t,i)=>
+    `<div class="yd" data-t="${t}" title="${t}"></div>`).join('')+
+    (S.yawnMarkers.length>20?`<span style="font-size:9px;color:var(--muted)">+${S.yawnMarkers.length-20} more</span>`:'');
+
+  // Phone - UPDATE NORMALLY
+  document.getElementById('phoneEventsLive').textContent = S.phoneEventsCount;
+  document.getElementById('phoneTotalLive').textContent  = Math.round(S.phoneTotalSecs)+'s';
+  const plb = document.getElementById('phoneLiveBadge');
+  plb.textContent = S.phoneActive ? 'IN USE!' : 'Idle';
+  plb.className   = 'sbadge '+(S.phoneActive?'s-phone':'');
+  plb.style       = S.phoneActive?'background:rgba(255,45,120,.15);color:var(--phone);animation:glow .9s ease-in-out infinite alternate':'background:rgba(90,106,126,.12);color:var(--muted)';
+  const pb = document.getElementById('phoneActiveBanner');
+  pb.style.display = S.phoneActive ? 'block':'none';
+  document.getElementById('phoneCurrentSecs').textContent = S.phoneCurrentSecs;
+
+  // Attention chart - ALWAYS UPDATE (bottom graph updates every 500ms)
+  updateAttChart();
+}
+
+function updateAttChart() {
+  const labels = S.attTs.map(d=>d.t);
+  const data   = S.attTs.map(d=>d.v);
+  if (!attChartInst) {
+    const ctx = document.getElementById('attChart').getContext('2d');
+    attChartInst = new Chart(ctx, {
+      type:'line',
+      data:{labels, datasets:[{
+        data, label:'Attention %',
+        borderColor:'rgb(0,240,160)', backgroundColor:'rgba(0,240,160,.06)',
+        fill:true, tension:.4, pointRadius:0, borderWidth:2,
+      }]},
+      options: cOpts(0,100,'%')
+    });
+  } else {
+    attChartInst.data.labels = labels;
+    attChartInst.data.datasets[0].data = data;
+    attChartInst.update('none');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SUMMARY VIEW
+// ══════════════════════════════════════════════════════════════════
+let sumAttCI=null, sumDonutCI=null, sumYawnCI=null;
+
+function renderSummary() {
+  const att = S.attentionPct || Math.round(S.attentionScore*100);
+  const grade = att>=90?'A+':att>=80?'A':att>=70?'B':att>=55?'C':att>=40?'D':'F';
+  const col = att>=65?'var(--green)':att>=35?'var(--orange)':'var(--red)';
+  const duration = S.sessionStart
+    ? Math.round(((S.sessionEnd||Date.now())-S.sessionStart)/1000) : 0;
+  const durStr = duration>=3600
+    ? Math.floor(duration/3600)+'h '+Math.floor((duration%3600)/60)+'m'
+    : Math.floor(duration/60)+'m '+(duration%60)+'s';
+
+  document.getElementById('sumGrade').textContent = grade;
+  document.getElementById('sumGrade').style.background =
+    `linear-gradient(135deg,${col},var(--cyan))`;
+  document.getElementById('sumGrade').style.webkitBackgroundClip='text';
+  document.getElementById('sumGrade').style.webkitTextFillColor='transparent';
+  document.getElementById('sumGrade').style.backgroundClip='text';
+
+  const descriptions = {
+    'A+':'Exceptional attention throughout. Minimal distractions, no concerning behaviour detected.',
+    'A' :'Strong focus maintained. Brief lapses but quickly recovered — excellent session.',
+    'B' :'Good engagement overall. A few yawns and minor distractions, but mostly attentive.',
+    'C' :'Moderate attention. Noticeable distractions and fatigue signs detected.',
+    'D' :'Low engagement. Frequent distractions, multiple head-down episodes, or phone use.',
+    'F' :'Very low attention detected. Significant intervention may be needed.',
+  };
+  document.getElementById('sumDesc').textContent = descriptions[grade]||'';
+  document.getElementById('sumAttPct').textContent   = att+'%';
+  document.getElementById('sumAttPct').style.color   = col;
+  document.getElementById('sumYawnTotal').textContent= S.yawnCount;
+  document.getElementById('sumHdMins').textContent   = S.hdTotalMins.toFixed(1)+'min';
+  document.getElementById('sumSleepMins').textContent= S.sleepTotalMins.toFixed(1)+'min';
+  document.getElementById('sumPhoneSecs').textContent= Math.round(S.phoneTotalSecs)+'s';
+  document.getElementById('sumDuration').textContent = durStr||'—';
+
+  // Attention chart
+  if (sumAttCI) { sumAttCI.destroy(); sumAttCI=null; }
+  const ctx1 = document.getElementById('sumAttChart').getContext('2d');
+  sumAttCI = new Chart(ctx1, {
+    type:'line',
+    data:{
+      labels: S.attTs.map(d=>d.t),
+      datasets:[{
+        data: S.attTs.map(d=>d.v),
+        borderColor: att>=65?'rgb(0,240,160)':att>=35?'rgb(255,149,0)':'rgb(255,61,87)',
+        backgroundColor: att>=65?'rgba(0,240,160,.07)':att>=35?'rgba(255,149,0,.07)':'rgba(255,61,87,.07)',
+        fill:true, tension:.4, pointRadius:0, borderWidth:2,
+      }]
+    },
+    options: cOpts(0,100,'%')
+  });
+
+  // Donut — behaviour distribution
+  const inattFrames = Math.max(0, 100 - att);
+  const hdFrac      = Math.min(S.hdTotalMins*100/((S.sessionEnd||Date.now()-(S.sessionStart||Date.now()))/60000||45),100);
+  if (sumDonutCI) { sumDonutCI.destroy(); sumDonutCI=null; }
+  const ctx2 = document.getElementById('sumDonut').getContext('2d');
+  sumDonutCI = new Chart(ctx2, {
+    type:'doughnut',
+    data:{
+      labels:['Attentive','Distracted','Head-Down','Yawn Events','Phone Use'],
+      datasets:[{
+        data:[att, Math.max(0,inattFrames-hdFrac-S.yawnCount*2), hdFrac,
+              Math.min(S.yawnCount*4,20), Math.min(S.phoneTotalSecs/3,20)],
+        backgroundColor:['rgba(0,240,160,.7)','rgba(255,149,0,.6)',
+                         'rgba(255,230,0,.6)','rgba(0,212,255,.6)','rgba(255,45,120,.6)'],
+        borderWidth:0, hoverOffset:5
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
+      plugins:{legend:{position:'right',labels:{color:'rgba(255,255,255,.45)',font:{size:10},boxWidth:10,padding:8}}}}
+  });
+
+  // Yawn scatter chart
+  if (sumYawnCI) { sumYawnCI.destroy(); sumYawnCI=null; }
+  const ctx3 = document.getElementById('sumYawnChart').getContext('2d');
+  const yawnScatter = S.yawnMarkers.map((t,i)=>({x:i+1, y:1}));
+  sumYawnCI = new Chart(ctx3, {
+    type:'scatter',
+    data:{datasets:[{
+      label:'Yawn Events',
+      data: yawnScatter,
+      backgroundColor:'rgba(0,212,255,.8)',
+      pointRadius:8, pointHoverRadius:12,
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>{
+        const i=ctx.dataIndex;
+        return 'Yawn #'+(i+1)+' at '+(S.yawnMarkers[i]||'');
+      }}}},
+      scales:{
+        x:{min:0,max:Math.max(S.yawnCount+1,5),ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'},title:{display:true,text:'Yawn Number',color:'rgba(255,255,255,.3)',font:{size:9}}},
+        y:{display:false,min:0,max:2}
+      }
+    }
+  });
+
+  // Head-down list
+  const hdl = document.getElementById('sumHdList');
+  hdl.innerHTML = S.hdEvents.length
+    ? S.hdEvents.map((e,i)=>`
+        <div class="hd-event">
+          <div class="hd-event-num">#${i+1}</div>
+          <div class="hd-event-info">
+            <div class="hd-event-time">${e.start}</div>
+            <div class="hd-event-dur">${e.duration_sec}s</div>
+          </div>
+        </div>`).join('')
+    : '<div class="no-data">No head-down events</div>';
+
+  // Full timeline
+  const tl = document.getElementById('sumTimeline');
+  if (!eventTimeline.length) {
+    tl.innerHTML='<div class="no-data">No events recorded yet</div>';
+  } else {
+    tl.innerHTML = eventTimeline.slice().reverse().map(e=>`
+      <div class="tl-item ${e.type}">
+        <div class="tl-time">${e.time}</div>
+        <div class="tl-text">${e.text}</div>
+      </div>`).join('');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PHONE SCREENSHOT MODAL
+// ══════════════════════════════════════════════════════════════════
+function openPhoneScreenshot(fullB64, thumbB64, timestamp) {
+  // Remove existing modal if any
+  const existing = document.getElementById('phoneScreenshotModal');
+  if (existing) existing.remove();
+  
+  const modal = document.createElement('div');
+  modal.id = 'phoneScreenshotModal';
+  modal.innerHTML = `
+    <div class="phone-modal-overlay" onclick="closePhoneModal()"></div>
+    <div class="phone-modal-container">
+      <div class="phone-modal-header">
+        <div class="phone-modal-title">
+          <span class="phone-modal-icon">📱</span>
+          Phone Screenshot
+        </div>
+        <div class="phone-modal-time">${timestamp}</div>
+        <button class="phone-modal-close" onclick="closePhoneModal()">✕</button>
+      </div>
+      <div class="phone-modal-content">
+        <img src="data:image/jpeg;base64,${fullB64}" alt="Phone Screenshot" class="phone-modal-image" id="phoneScreenshotImage">
+      </div>
+      <div class="phone-modal-footer">
+        <div class="phone-modal-info">
+          <span class="phone-modal-label">Full screenshot captured during phone usage event</span>
+        </div>
+        <button class="btn btn-ghost" onclick="downloadPhoneScreenshot('${fullB64}', '${timestamp}')">💾 Download</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  
+  // Fade in animation
+  setTimeout(() => modal.style.opacity = '1', 10);
+}
+
+function closePhoneModal() {
+  const modal = document.getElementById('phoneScreenshotModal');
+  if (modal) {
+    modal.style.opacity = '0';
+    setTimeout(() => modal.remove(), 200);
+  }
+}
+
+function downloadPhoneScreenshot(b64, timestamp) {
+  const link = document.createElement('a');
+  link.href = 'data:image/jpeg;base64,'+b64;
+  link.download = 'phone-screenshot-'+timestamp.replace(/:/g, '-')+'.jpg';
+  link.click();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PHONE LOG VIEW
+// ══════════════════════════════════════════════════════════════════
+function renderPhoneLog() {
+  document.getElementById('plTotalEvents').textContent = S.phoneEventsCount;
+  document.getElementById('plTotalSecs').textContent   = Math.round(S.phoneTotalSecs)+'s';
+
+  if (S.phoneActive) {
+    document.getElementById('plActiveStatus').innerHTML=
+      '<span class="phone-active-badge">ACTIVE NOW</span>';
+  } else {
+    document.getElementById('plActiveStatus').innerHTML='';
+  }
+
+  const list = document.getElementById('phoneEventList');
+  if (!S.phoneEvents.length) {
+    list.innerHTML='<div class="no-data">No phone events recorded yet.</div>';
+    return;
+  }
+  list.innerHTML = S.phoneEvents.slice().reverse().map((e,i)=>`
+    <div class="phone-event-card" onclick="${e.screenshot_b64?`openPhoneScreenshot('${e.screenshot_b64}', '${e.thumbnail_b64}', '${e.start}')`:''}" style="cursor:${e.screenshot_b64?'pointer':'default'}">
+      <div class="phone-event-thumb">
+        ${e.thumbnail_b64
+          ? `<img src="data:image/jpeg;base64,${e.thumbnail_b64}" alt="phone screenshot" class="phone-thumb-img">`
+          : '<div class="phone-no-thumb">📱</div>'}
+      </div>
+      <div class="phone-event-info">
+        <div class="phone-event-time">${e.start}</div>
+        <div class="phone-event-dur">${e.duration_sec}s active</div>
+        <div class="phone-event-hint">${e.screenshot_b64?'Click to view full screenshot':'No screenshot'}</div>
+      </div>
+      <div class="phone-event-badge">#${S.phoneEvents.length-i}</div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// TIMER
+// ══════════════════════════════════════════════════════════════════
+let timerInterval=null, timerRemaining=2700, timerRunning=false, timerDone=false;
+
+function setDur(h,m,s){
+  document.getElementById('durH').value=h;
+  document.getElementById('durM').value=m;
+  document.getElementById('durS').value=s;
+  if(!timerRunning){timerRemaining=h*3600+m*60+s;updTimerDisp();}
+}
+function tStart(){
+  const h=parseInt(document.getElementById('durH').value)||0;
+  const m=parseInt(document.getElementById('durM').value)||45;
+  const s=parseInt(document.getElementById('durS').value)||0;
+  timerRemaining=h*3600+m*60+s; timerRunning=true; timerDone=false;
+  document.getElementById('tStartBtn').style.display='none';
+  document.getElementById('tPauseBtn').style.display='inline-block';
+  document.getElementById('tStopBtn').style.display='inline-block';
+  document.getElementById('timerDisp').classList.add('running');
+  if(!S.sessionActive) startSession();
+  log('ok','Timer: '+fmtTime(timerRemaining));
+  timerInterval=setInterval(()=>{
+    timerRemaining--;
+    updTimerDisp();
+    if(timerRemaining<=0){tStop();toast('Class time complete!','ok');}
+  },1000);
+}
+function tPause(){
+  if(timerRunning){
+    clearInterval(timerInterval);timerRunning=false;
+    document.getElementById('tPauseBtn').textContent='Resume';
+    document.getElementById('timerDisp').classList.remove('running');
+    log('warn','Timer paused');
+  } else {
+    timerRunning=true;
+    document.getElementById('tPauseBtn').textContent='Pause';
+    document.getElementById('timerDisp').classList.add('running');
+    log('ok','Timer resumed');
+    timerInterval=setInterval(()=>{timerRemaining--;updTimerDisp();if(timerRemaining<=0)tStop();},1000);
+  }
+}
+function tStop(){
+  clearInterval(timerInterval);timerRunning=false;timerDone=true;
+  document.getElementById('tStartBtn').style.display='inline-block';
+  document.getElementById('tPauseBtn').style.display='none';
+  document.getElementById('tStopBtn').style.display='none';
+  document.getElementById('tPauseBtn').textContent='Pause';
+  document.getElementById('timerDisp').classList.remove('running');
+  log('ok','Session ended — report generated');
+  if(S.sessionActive)endSession();
+}
+function updTimerDisp(){
+  document.getElementById('timerDisp').textContent=fmtTime(timerRemaining);
+}
+function fmtTime(s){
+  const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// LOG
+// ══════════════════════════════════════════════════════════════════
+function log(type,msg){
+  logEntries.push({type,msg,t:new Date().toLocaleTimeString()});
+  const el=document.getElementById('sessionLog');
+  const icons={ok:'✓',warn:'⚠',info:'ℹ',danger:'!'};
+  const cols={ok:'var(--green)',warn:'var(--orange)',info:'var(--muted)',danger:'var(--red)'};
+  el.innerHTML=logEntries.slice().reverse().map(e=>`
+    <div class="log-item">
+      <span class="log-ic" style="color:${cols[e.type]||cols.info}">${icons[e.type]||'·'}</span>
+      <span class="log-msg">${e.msg}</span>
+      <span class="log-t">${e.t}</span>
+    </div>`).join('');
+}
+function clearLog(){logEntries=[];document.getElementById('sessionLog').innerHTML='<div class="no-data">Log cleared</div>';}
+
+// ══════════════════════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════════════════════
+function toast(msg,type='info'){
+  if(!document.getElementById('toastOn').checked&&type!=='ok')return;
+  const area=document.getElementById('toastArea');
+  const icons={ok:'✓',warn:'⚠',info:'ℹ',danger:'!',phone:'📱'};
+  const cls={ok:'',warn:'t-orange',danger:'t-red',phone:'t-phone',info:''};
+  const cols={ok:'var(--green)',warn:'var(--orange)',danger:'var(--red)',phone:'var(--phone)',info:'var(--muted)'};
+  const el=document.createElement('div');
+  el.className='toast '+(cls[type]||'');
+  el.innerHTML=`<span style="color:${cols[type]||cols.info};font-weight:700;flex-shrink:0">${icons[type]||'·'}</span><span>${msg}</span>`;
+  area.appendChild(el);
+  setTimeout(()=>{el.style.opacity='0';el.style.transform='translateY(8px)';el.style.transition='all .3s';setTimeout(()=>el.remove(),300);},4500);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CHART OPTIONS HELPER
+// ══════════════════════════════════════════════════════════════════
+function cOpts(min,max,unit){
+  return{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{ticks:{color:'rgba(255,255,255,.25)',maxTicksLimit:6,font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}},
+      y:{min,max,ticks:{color:'rgba(255,255,255,.25)',font:{size:9},callback:v=>v+unit},grid:{color:'rgba(255,255,255,.04)'}}
+    }
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════════════════════════════════
+function saveSettings(){
+  S.studentName=document.getElementById('sNameIn').value||'Student';
+  document.getElementById('studentNameLabel').textContent=S.studentName.toUpperCase();
+  toast('Settings saved','ok');
+}
+function exportJSON(){
+  const data={student:S.studentName,session:{start:S.sessionStart,end:S.sessionEnd},
+    attentionPct:S.attentionPct,yawnCount:S.yawnCount,yawnMarkers:S.yawnMarkers,
+    hdCount:S.hdCount,hdTotalMins:S.hdTotalMins,hdEvents:S.hdEvents,
+    phoneEventsCount:S.phoneEventsCount,phoneTotalSecs:S.phoneTotalSecs,
+    phoneEvents:S.phoneEvents,attTs:S.attTs,eventTimeline};
+  const b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='evileye_'+S.studentName+'.json';a.click();
+}
+function exportCSV(){
+  const rows=[['Metric','Value'],['Student',S.studentName],['Attention %',S.attentionPct],
+    ['Yawn Count',S.yawnCount],['Head-Down Events',S.hdCount],
+    ['Head-Down Mins',S.hdTotalMins],['Phone Events',S.phoneEventsCount],
+    ['Phone Secs',Math.round(S.phoneTotalSecs)]];
+  const b=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='evileye_'+S.studentName+'.csv';a.click();
+}
+function resetAll(){
+  if(!confirm('Reset all session data?'))return;
+  endSession();S={...S,yawnCount:0,yawnMarkers:[],yawnEvents:[],hdCount:0,hdTotalMins:0,
+    hdTotalSecs:0,hdEvents:[],phoneEventsCount:0,phoneTotalSecs:0,phoneEvents:[],attTs:[]};
+  frameCount=0;_prevYawnState='NO_YAWN';_hdActive=false;_phoneActive=false;
+  _phoneDurAcc=0;_hdDurAcc=0;eventTimeline=[];
+  toast('Data reset','warn');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PRODUCTION POLLING  (replaces simulation when connected to Jetson)
+// ══════════════════════════════════════════════════════════════════
+function startPolling(){
+  if (pollInterval) return;
+  // Polls outputs/state.json written by student_tracker.py every 500ms
+  pollInterval=setInterval(async()=>{
+    try{
+      const r=await fetch('./outputs/state.json?t='+Date.now(), {cache:'no-store'});
+      if(!r.ok)return;
+      const data=await r.json();
+      applyState(data);
+    }catch(e){}
+  },500);
+}
+
+function stopPolling(){
+  if(!pollInterval)return;
+  clearInterval(pollInterval);
+  pollInterval=null;
+}
+
+function applyState(data){
+  // Map state.json fields → S
+  S.studentName     = data.student_name || S.studentName || 'Student';
+  document.getElementById('studentNameLabel').textContent = (S.studentName||'Student').toUpperCase();
+  
+  S.present         = !!data.present;
+  S.faceFound       = !!data.face_found;
+  S.attentionScore  = Number.isFinite(data.attention_score) ? data.attention_score : 0;
+  S.attentionLabel  = data.attention_label || 'UNKNOWN';
+  S.attentionPct    = Number.isFinite(data.attention_pct) ? data.attention_pct : 0;
+  S.eyeState        = data.eye_state || 'UNKNOWN';
+  S.headState       = data.head_state || 'UNKNOWN';
+  S.sleepState      = data.sleep_state || 'UNKNOWN';
+  S.yawnState       = data.yawn_state || 'NO_YAWN';
+  S.yawnCount       = Number.isFinite(data.yawn_count) ? data.yawn_count : 0;
+  S.yawnMarkers     = data.yawn_markers || [];
+  
+  S.hdCount         = Number.isFinite(data.head_down_count) ? data.head_down_count : 0;
+  S.hdTotalMins     = Number.isFinite(data.head_down_total_mins) ? data.head_down_total_mins : 0;
+  S.hdTotalSecs     = Number.isFinite(data.head_down_total_secs) ? data.head_down_total_secs : 0;
+  S.hdCurrentSecs   = Number.isFinite(data.head_down_current_secs) ? data.head_down_current_secs : 0;
+  S.hdCurrentActive = !!data.head_currently_down;
+  S.hdEvents        = data.head_down_events || [];
+  
+  S.sleepCount      = Number.isFinite(data.sleep_count) ? data.sleep_count : 0;
+  S.sleepTotalMins  = Number.isFinite(data.sleep_total_mins) ? data.sleep_total_mins : 0;
+  S.sleepTotalSecs  = Number.isFinite(data.sleep_total_secs) ? data.sleep_total_secs : 0;
+  S.sleepCurrentSecs= Number.isFinite(data.sleep_current_secs) ? data.sleep_current_secs : 0;
+  S.sleepCurrentActive = !!data.student_currently_sleeping;
+  S.sleepEvents     = data.sleep_events || [];
+  
+  S.phoneActive     = !!data.phone_active;
+  S.phoneEventsCount= Number.isFinite(data.phone_events_count) ? data.phone_events_count : 0;
+  S.phoneTotalSecs  = Number.isFinite(data.phone_total_secs) ? data.phone_total_secs : 0;
+  S.phoneCurrentSecs= Number.isFinite(data.phone_current_secs) ? data.phone_current_secs : 0;
+  S.phoneEvents     = data.phone_events || [];
+  
+  // attention_ts comes as 0..1 values; UI expects percent integers
+  S.attTs           = (data.attention_ts||[]).map(d=>({
+    t: d.t,
+    v: Math.round((d.v||0)*100)
+  }));
+  
+  // ================================================================
+  // REBUILD EVENT TIMELINE from all available events
+  // ================================================================
+  // This ensures the summary "Full Event Timeline" displays all events
+  eventTimeline = [];
+  
+  // Add yawn events
+  if (S.yawnMarkers && S.yawnMarkers.length) {
+    S.yawnMarkers.forEach((marker, idx) => {
+      eventTimeline.push({
+        type: 'ev-yawn',
+        time: marker,
+        text: '😮 Yawn #' + (idx + 1) + ' detected'
+      });
+    });
+  }
+  
+  // Add head-down events
+  if (S.hdEvents && S.hdEvents.length) {
+    S.hdEvents.forEach((event, idx) => {
+      eventTimeline.push({
+        type: 'ev-head',
+        time: event.start || 'N/A',
+        text: 'Head-down event #' + (idx + 1) + ' — ' + Math.round(event.duration_sec || 0) + 's'
+      });
+    });
+  }
+  
+  // Add sleep events
+  if (S.sleepEvents && S.sleepEvents.length) {
+    S.sleepEvents.forEach((event, idx) => {
+      eventTimeline.push({
+        type: 'ev-att',
+        time: event.start || 'N/A',
+        text: '😴 Sleep episode #' + (idx + 1) + ' — ' + Math.round(event.duration_sec || 0) + 's'
+      });
+    });
+  }
+  
+  // Add phone events
+  if (S.phoneEvents && S.phoneEvents.length) {
+    S.phoneEvents.forEach((event, idx) => {
+      eventTimeline.push({
+        type: 'ev-phone',
+        time: event.start || 'N/A',
+        text: '📱 Phone usage event #' + (idx + 1) + ' — ' + Math.round(event.duration_sec || 0) + 's'
+      });
+    });
+  }
+  
+  // Sort timeline by time (newest first for most recent events visible)
+  eventTimeline.sort((a, b) => {
+    // Try to parse times in HH:MM:SS format
+    const parseTime = (t) => {
+      if (!t || t === 'N/A') return 0;
+      const parts = t.split(':');
+      if (parts.length === 3) {
+        return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
+      }
+      return 0;
+    };
+    return parseTime(b.time) - parseTime(a.time);
+  });
+  
+  updateLive();
+  
+  // Keep phone log view fresh if user is viewing it
+  const phoneViewActive = document.getElementById('view-phone') && document.getElementById('view-phone').classList.contains('active');
+  if (phoneViewActive) renderPhoneLog();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════
+function init(){
+  updTimerDisp();
+  log('info','Dashboard ready · '+new Date().toLocaleString());
+  // Warm up charts with empty state
+  setTimeout(()=>{ S.attTs=[{t:'00:00',v:0}]; updateLive(); },100);
+}
+init();
+</script>
+</body>
+</html>
